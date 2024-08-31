@@ -11,22 +11,36 @@ class SpatialGroupEnhance(nn.Module):
         self.weight   = Parameter(torch.zeros(1, groups, 1, 1))
         self.bias     = Parameter(torch.ones(1, groups, 1, 1))
         self.sig      = nn.Sigmoid()
+        self.gn = nn.GroupNorm(1, 1)
 
+    # By GroupNorm
     def forward(self, x): # (b, c, h, w)
         b, c, h, w = x.size()
         x = x.view(b * self.groups, -1, h, w) 
         xn = x * self.avg_pool(x)
         xn = xn.sum(dim=1, keepdim=True)
-        t = xn.view(b * self.groups, -1)
-        t = t - t.mean(dim=1, keepdim=True)
-        std = t.std(dim=1, keepdim=True) + 1e-5
-        t = t / std
-        t = t.view(b, self.groups, h, w)
-        t = t * self.weight + self.bias
-        t = t.view(b * self.groups, 1, h, w)
+
+        xn = xn.view(b * self.groups, -1, h, w)
+        t = self.gn.forward(x_pool)
         x = x * self.sig(t)
         x = x.view(b, c, h, w)
         return x
+
+    # def forward(self, x): # (b, c, h, w)
+    #     b, c, h, w = x.size()
+    #     x = x.view(b * self.groups, -1, h, w) 
+    #     xn = x * self.avg_pool(x)
+    #     xn = xn.sum(dim=1, keepdim=True)
+    #     t = xn.view(b * self.groups, -1)
+    #     t = t - t.mean(dim=1, keepdim=True)
+    #     std = t.std(dim=1, keepdim=True) + 1e-5
+    #     t = t / std
+    #     t = t.view(b, self.groups, h, w)
+    #     t = t * self.weight + self.bias
+    #     t = t.view(b * self.groups, 1, h, w)
+    #     x = x * self.sig(t)
+    #     x = x.view(b, c, h, w)
+    #     return x
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
